@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package repository
 
 import (
@@ -15,6 +17,10 @@ type StepRepository struct {
 }
 
 func NewStepRepository(pool *pgxpool.Pool, logger *slog.Logger) *StepRepository {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	return &StepRepository{
 		pool:   pool,
 		logger: logger,
@@ -22,6 +28,26 @@ func NewStepRepository(pool *pgxpool.Pool, logger *slog.Logger) *StepRepository 
 }
 
 func (s *StepRepository) ListSteps(ctx context.Context, runID uuid.UUID) ([]domain.StepRecord, error) {
+	apiKeyID, err := apiKeyIDFromContext(ctx)
+	if err != nil {
+		s.logger.Warn("list steps denied: missing api key id", "run_id", runID, "error", err)
+		return nil, err
+	}
+
+	var exists int
+	if err := s.pool.QueryRow(ctx,
+		`SELECT 1 FROM runs WHERE id=$1 AND api_key_id=$2`,
+		runID,
+		apiKeyID,
+	).Scan(&exists); err != nil {
+		s.logger.Error("run ownership check failed",
+			"run_id", runID,
+			"api_key_id", apiKeyID,
+			"error", err,
+		)
+		return nil, err
+	}
+
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, name, status
 		FROM steps
@@ -59,7 +85,7 @@ func (s *StepRepository) ListSteps(ctx context.Context, runID uuid.UUID) ([]doma
 		return nil, err
 	}
 
-	s.logger.Debug("steps fetched",
+	s.logger.Info("steps fetched",
 		"run_id", runID,
 		"count", len(out),
 	)

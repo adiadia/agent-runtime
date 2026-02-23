@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package executors
 
 import (
@@ -13,12 +15,19 @@ type ToolExecutor struct{}
 func (e *ToolExecutor) Execute(
 	ctx context.Context,
 	runID uuid.UUID,
-) (json.RawMessage, error) {
+) (json.RawMessage, float64, error) {
 
-	time.Sleep(2 * time.Second)
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
+	case <-timer.C:
+	}
 
 	return json.RawMessage(`{
 		"type":"tool",
 		"text":"mock tool ok"
-	}`), nil
+	}`), 0, nil
 }

@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
 	"context"
 	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,9 +12,16 @@ import (
 	"time"
 
 	"github.com/adiadia/agent-runtime/internal/config"
+	"github.com/adiadia/agent-runtime/internal/logging"
 	"github.com/adiadia/agent-runtime/internal/persistence/postgres"
 	"github.com/adiadia/agent-runtime/internal/repository"
 	httptransport "github.com/adiadia/agent-runtime/internal/transport/http"
+)
+
+var (
+	Version   = "dev"
+	Commit    = "none"
+	BuildDate = "unknown"
 )
 
 func main() {
@@ -26,8 +34,7 @@ func main() {
 	)
 	defer stop()
 
-	// Structured logger
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := logging.NewLogger(cfg.Env)
 
 	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -37,11 +44,20 @@ func main() {
 
 	runRepo := repository.NewRunRepository(pool, logger)
 	stepRepo := repository.NewStepRepository(pool, logger)
+	eventRepo := repository.NewEventRepository(pool, logger)
+	apiKeyRepo := repository.NewAPIKeyRepository(pool, logger)
 
 	handler := httptransport.NewRouter(httptransport.Deps{
-		RunRepo:  runRepo,
-		StepRepo: stepRepo,
-		Logger:   logger,
+		RunRepo:        runRepo,
+		StepRepo:       stepRepo,
+		EventRepo:      eventRepo,
+		APIKeyAdmin:    apiKeyRepo,
+		Logger:         logger,
+		APIKeyResolver: apiKeyRepo,
+		AdminToken:     cfg.AdminToken,
+		Version:        Version,
+		Commit:         Commit,
+		BuildDate:      BuildDate,
 	})
 
 	srv := &http.Server{
@@ -51,7 +67,12 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("api listening", "addr", cfg.HTTPAddr)
+		logger.Info("api listening",
+			"addr", cfg.HTTPAddr,
+			"version", Version,
+			"commit", Commit,
+			"build_date", BuildDate,
+		)
 
 		if err := srv.ListenAndServe(); err != nil &&
 			err != http.ErrServerClosed {

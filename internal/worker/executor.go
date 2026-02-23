@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package worker
 
 import (
@@ -8,5 +10,5 @@ import (
 )
 
 type StepExecutor interface {
-	Execute(ctx context.Context, runID uuid.UUID) (json.RawMessage, error)
+	Execute(ctx context.Context, runID uuid.UUID) (json.RawMessage, float64, error)
 }

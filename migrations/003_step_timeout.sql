@@ -1,0 +1,2 @@
+ALTER TABLE steps
+    ADD COLUMN IF NOT EXISTS timeout_seconds INTEGER NULL;

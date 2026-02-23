@@ -1,0 +1,8 @@
+.cache/
+.gocache/
+.gomodcache/
+.gotmp/
+.env
+.env.*
+!.env.example
+bin/

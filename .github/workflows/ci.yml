@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  GOFLAGS: -mod=readonly
+
+jobs:
+  docs_lint:
+    name: Docs Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docs files and README references
+        run: |
+          set -euo pipefail
+
+          required_docs=(
+            "docs/architecture.md"
+            "docs/problem.md"
+            "docs/roadmap.md"
+            "docs/state-machine.md"
+          )
+
+          for file in "${required_docs[@]}"; do
+            if [[ ! -f "${file}" ]]; then
+              echo "Missing required documentation file: ${file}"
+              exit 1
+            fi
+          done
+
+          for file in "${required_docs[@]}"; do
+            if ! grep -q "${file}" README.md; then
+              echo "README.md must reference ${file}"
+              exit 1
+            fi
+          done
+
+  lint_test:
+    name: Lint and Unit Tests
+    runs-on: ubuntu-latest
+    needs: docs_lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: make fmt-check
+
+      - name: Vet
+        run: make vet
+
+      - name: Unit tests
+        run: make test-unit
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: docs_lint
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: durable
+          POSTGRES_PASSWORD: durable
+          POSTGRES_DB: durable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U durable -d durable"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://durable:durable@localhost:5432/durable?sslmode=disable
+      PGPASSWORD: durable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U durable -d durable; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "postgres did not become ready in time"
+          exit 1
+
+      - name: Run migrations
+        run: |
+          for f in $(ls migrations/*.sql | sort); do
+            echo "applying $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Integration tests
+        run: make test-integration-db

@@ -159,6 +159,83 @@ func TestApproveRunIntegration(t *testing.T) {
 	}
 }
 
+func TestApproveRunRejectsNonWaitingApprovalStep(t *testing.T) {
+	ctx := context.Background()
+	pool := integrationPool(t, ctx)
+	defer pool.Close()
+
+	if err := truncateAll(ctx, pool); err != nil {
+		t.Skipf("skip integration test: database not reachable (%v)", err)
+	}
+
+	apiKeyID, err := createIntegrationAPIKey(ctx, pool)
+	if err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+	tenantCtx := auth.WithAPIKeyID(ctx, apiKeyID)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	runRepo := NewRunRepository(pool, logger)
+
+	runID, err := runRepo.CreateRun(tenantCtx, domain.CreateRunParams{})
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	err = runRepo.ApproveRun(tenantCtx, runID)
+	if !errors.Is(err, domain.ErrRunNotWaitingApproval) {
+		t.Fatalf("expected ErrRunNotWaitingApproval got %v", err)
+	}
+
+	var approvalStatus domain.StepStatus
+	if err := pool.QueryRow(ctx, `
+		SELECT status
+		FROM steps
+		WHERE run_id=$1 AND name=$2
+	`, runID, domain.StepApproval).Scan(&approvalStatus); err != nil {
+		t.Fatalf("query approval step status: %v", err)
+	}
+	if approvalStatus != domain.StepPending {
+		t.Fatalf("expected approval step to remain %s got %s", domain.StepPending, approvalStatus)
+	}
+}
+
+func TestApproveRunIsIdempotentWhenAlreadyApproved(t *testing.T) {
+	ctx := context.Background()
+	pool := integrationPool(t, ctx)
+	defer pool.Close()
+
+	if err := truncateAll(ctx, pool); err != nil {
+		t.Skipf("skip integration test: database not reachable (%v)", err)
+	}
+
+	apiKeyID, err := createIntegrationAPIKey(ctx, pool)
+	if err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+	tenantCtx := auth.WithAPIKeyID(ctx, apiKeyID)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	runRepo := NewRunRepository(pool, logger)
+
+	runID, err := runRepo.CreateRun(tenantCtx, domain.CreateRunParams{})
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+		UPDATE steps
+		SET status=$2
+		WHERE run_id=$1 AND name=$3
+	`, runID, domain.StepSuccess, domain.StepApproval); err != nil {
+		t.Fatalf("set approval step succeeded: %v", err)
+	}
+
+	if err := runRepo.ApproveRun(tenantCtx, runID); err != nil {
+		t.Fatalf("approve run should be idempotent when already approved, got %v", err)
+	}
+}
+
 func TestRepositoryEnforcesRunOwnership(t *testing.T) {
 	ctx := context.Background()
 	pool := integrationPool(t, ctx)

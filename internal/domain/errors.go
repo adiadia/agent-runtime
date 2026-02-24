@@ -7,3 +7,4 @@ import "errors"
 var ErrMaxConcurrentRunsExceeded = errors.New("max concurrent runs exceeded")
 var ErrWorkflowTemplateNotFound = errors.New("workflow template not found")
 var ErrInvalidAPIKeyName = errors.New("invalid api key name")
+var ErrRunNotWaitingApproval = errors.New("run is not waiting approval")

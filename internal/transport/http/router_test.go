@@ -975,6 +975,24 @@ func TestRouter_ApproveNotFound(t *testing.T) {
 	}
 }
 
+func TestRouter_ApproveRequiresWaitingApproval(t *testing.T) {
+	runID := uuid.New()
+	runRepo := &mockRunRepo{approveErr: domain.ErrRunNotWaitingApproval}
+	router := NewRouter(Deps{
+		RunRepo:  runRepo,
+		StepRepo: &mockStepLister{},
+		Logger:   discardLogger(),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/runs/"+runID.String()+"/approve", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409 got %d", rec.Code)
+	}
+}
+
 func TestWriteJSONSetsHeadersAndBody(t *testing.T) {
 	rec := httptest.NewRecorder()
 	writeJSON(rec, http.StatusCreated, map[string]string{"ok": "true"})

@@ -210,6 +210,9 @@ curl -s http://localhost:8080/runs/${RUN_ID}/steps \
 curl -s -X POST http://localhost:8080/runs/${RUN_ID}/approve \
   -H "Authorization: Bearer ${API_TOKEN}"
 ```
+Behavior:
+- Returns `200` when the approval step is approved (including idempotent already-approved calls).
+- Returns `409` with `only WAITING_APPROVAL runs can be approved` when run/step is not currently waiting for approval.
 
 ### Cancel run
 ```bash

@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Expanded container support with dedicated API and worker production Dockerfiles.
 
+## [v0.1.1] - 2026-02-24
+
+### Fixed
+- Approve API now enforces WAITING_APPROVAL semantics and returns a clear conflict error for invalid approval attempts.
+- Approve API is idempotent for already-approved runs/steps.
+- Added integration and router coverage for approval edge cases and HTTP status mapping.
+
+### Changed
+- Updated Apache-2.0 LICENSE attribution to: `Copyright (c) 2026 Aditya Tiwari`.
+
 ## [v0.1.0] - 2026-02-23
 
 ### Added

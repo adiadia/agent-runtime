@@ -446,6 +446,10 @@ func NewRouter(deps Deps) http.Handler {
 					http.Error(w, "run not found", http.StatusNotFound)
 					return
 				}
+				if errors.Is(err, domain.ErrRunNotWaitingApproval) {
+					http.Error(w, "only WAITING_APPROVAL runs can be approved", http.StatusConflict)
+					return
+				}
 
 				logger.Error("approve run failed", "run_id", runID, "error", err)
 				http.Error(w, "failed to approve run", http.StatusInternalServerError)

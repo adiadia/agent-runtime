@@ -480,9 +480,16 @@ func (r *RunRepository) ApproveRun(ctx context.Context, runID uuid.UUID) error {
 	}
 
 	if runStatus == domain.RunCanceled ||
-		runStatus == domain.RunSuccess ||
 		runStatus == domain.RunFailed {
-		r.logger.Info("approve skipped (terminal)",
+		r.logger.Warn("approve rejected (terminal)",
+			"run_id", runID,
+			"status", runStatus,
+		)
+		return fmt.Errorf("%w: run status is %s", domain.ErrRunNotWaitingApproval, runStatus)
+	}
+
+	if runStatus == domain.RunSuccess {
+		r.logger.Info("approve idempotent (already succeeded)",
 			"run_id", runID,
 			"status", runStatus,
 		)
@@ -511,8 +518,31 @@ func (r *RunRepository) ApproveRun(ctx context.Context, runID uuid.UUID) error {
 	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		r.logger.Info("approve idempotent", "run_id", runID)
-		return tx.Commit(ctx)
+		var approvalStatus domain.StepStatus
+		statusErr := tx.QueryRow(ctx, `
+			SELECT status
+			FROM steps
+			WHERE run_id=$1 AND name=$2
+		`, runID, domain.StepApproval).Scan(&approvalStatus)
+		if statusErr != nil {
+			if errors.Is(statusErr, pgx.ErrNoRows) {
+				r.logger.Warn("approve rejected: approval step not found", "run_id", runID)
+				return fmt.Errorf("%w: approval step not found", domain.ErrRunNotWaitingApproval)
+			}
+			r.logger.Error("read approval step status failed", "run_id", runID, "error", statusErr)
+			return statusErr
+		}
+
+		if approvalStatus == domain.StepSuccess {
+			r.logger.Info("approve idempotent (already approved)", "run_id", runID)
+			return tx.Commit(ctx)
+		}
+
+		r.logger.Warn("approve rejected: approval step not waiting",
+			"run_id", runID,
+			"approval_status", approvalStatus,
+		)
+		return fmt.Errorf("%w: approval step status is %s", domain.ErrRunNotWaitingApproval, approvalStatus)
 	}
 
 	approvalPayload, err := json.Marshal(map[string]domain.StepStatus{

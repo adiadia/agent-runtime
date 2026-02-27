@@ -130,13 +130,6 @@ docker pull ghcr.io/<owner>/agent-runtime-api:latest
 docker pull ghcr.io/<owner>/agent-runtime-worker:latest
 ```
 
-Run the full stack with GHCR images:
-
-```bash
-docker compose -f compose.ghcr.yml up -d postgres api
-docker compose -f compose.ghcr.yml --profile worker up -d worker
-```
-
 Run API container:
 
 ```bash
@@ -337,7 +330,7 @@ Then create a run with `"template_name": "ops-template"`.
 - `make test-setup` - download deps into local cache
 - `make docker-build` - build local API + worker container images
 - `make docker-up` - start Postgres (compose service)
-- `make migrate` - apply SQL migrations in order via `scripts/migrate.sh`
+- `make migrate` - apply SQL migrations in order
 - `make fmt` - apply `gofmt -w` to all Go files
 - `make fmt-check` - fail if any file is not gofmt-formatted
 - `make vet` - run `go vet ./...`
@@ -389,7 +382,6 @@ set +a
 | `LOG_LEVEL` | `info` | API + Worker | Log level: `debug`, `info`, `warn`, `error` |
 | `ADMIN_TOKEN` | empty | API | Bearer token for `/api-keys` admin endpoints |
 | `AUTO_MIGRATE` | `true` | API + Worker | Apply embedded SQL migrations at process startup |
-| `IMAGE_TAG` | `latest` | GHCR Compose | Tag used by `compose.ghcr.yml` image references |
 
 ## 10) Security Notes
 - API tokens are generated as `sk_live_<32-random-bytes-hex>`.

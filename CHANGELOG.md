@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release automation for publishing multi-arch Docker images to GHCR.
 - Project-level validation command (`go run ./cmd/cli validate`) and CI docs checks.
 - Embedded schema bootstrap at API/worker startup with advisory-lock migration coordination.
-- GHCR-focused compose file (`compose.ghcr.yml`) and migration helper script (`scripts/migrate.sh`).
 - Integration coverage for startup against an empty database (`EnsureSchema` bootstrap path).
 
 ### Changed

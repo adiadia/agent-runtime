@@ -99,7 +99,10 @@ wait-db:
 	exit 1
 
 migrate:
-	@bash scripts/migrate.sh
+	for f in $$(ls migrations/*.sql | sort); do \
+		echo "applying $$f"; \
+		cat $$f | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U durable -d durable; \
+	done
 
 build-api: cache-dirs
 	@mkdir -p bin

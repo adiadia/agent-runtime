@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.3] - 2026-02-27
+
 ### Added
 - Release automation for publishing multi-arch Docker images to GHCR.
 - Project-level validation command (`go run ./cmd/cli validate`) and CI docs checks.
+- Embedded schema bootstrap at API/worker startup with advisory-lock migration coordination.
+- Integration coverage for startup against an empty database (`EnsureSchema` bootstrap path).
 
 ### Changed
 - Expanded container support with dedicated API and worker production Dockerfiles.
+- `/healthz` now returns `503` when required schema is missing instead of reporting ready.
+- `POST /runs` priority contract is documented and tested as JSON integer-only.
 
 ## [v0.1.2] - 2026-02-24
 

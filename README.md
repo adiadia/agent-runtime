@@ -32,9 +32,15 @@ It is designed for teams running production automation that needs reliability an
 - Go 1.25+
 - Docker
 
-### Start Postgres and apply schema
+### Start Postgres
 ```bash
 make docker-up
+```
+
+Schema bootstrap now runs automatically when API/worker starts (`AUTO_MIGRATE=true` by default).
+Manual migration remains available for operational fallback:
+
+```bash
 make migrate
 ```
 
@@ -96,6 +102,20 @@ Run Postgres + API:
 docker compose up -d postgres api
 ```
 
+API startup automatically applies pending migrations before it begins serving traffic.
+Readiness contract:
+- `GET /healthz` returns `503` until required schema is present.
+- `GET /healthz` returns `200` only after schema checks pass.
+
+Validate a fresh DB startup path:
+
+```bash
+curl -s -X POST http://localhost:8080/api-keys \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"bootstrap-check"}'
+```
+
 Run worker (disabled by default, profile-gated):
 
 ```bash
@@ -136,6 +156,7 @@ There are two auth layers:
 - Admin endpoints (`/api-keys`) require `Authorization: Bearer <ADMIN_TOKEN>`.
 - Runtime endpoints (`/runs/*`) require `Authorization: Bearer <API_TOKEN>`.
 - Public endpoints that do not require auth: `GET /healthz`, `GET /metrics`, `GET /version`.
+- `/healthz` is schema-aware and returns `503` if required DB schema is missing.
 - Authenticated runtime responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining`.
 - When request rate is exceeded, API returns `429` with `Retry-After`.
 
@@ -189,6 +210,10 @@ curl -s -X POST http://localhost:8080/runs \
     "webhook_url": "https://example.com/agent-callback"
   }'
 ```
+
+Priority contract:
+- `priority` is an optional JSON integer (for example `10`).
+- Strings like `"normal"` and non-integers like `10.5` are rejected with `400`.
 
 Idempotency behavior:
 - Repeating `POST /runs` with the same `Idempotency-Key` and same API key returns the same `run_id` (`200 OK`), not a duplicate run.
@@ -305,7 +330,7 @@ Then create a run with `"template_name": "ops-template"`.
 - `make test-setup` - download deps into local cache
 - `make docker-build` - build local API + worker container images
 - `make docker-up` - start Postgres (compose service)
-- `make migrate` - apply SQL migrations
+- `make migrate` - apply SQL migrations in order
 - `make fmt` - apply `gofmt -w` to all Go files
 - `make fmt-check` - fail if any file is not gofmt-formatted
 - `make vet` - run `go vet ./...`
@@ -356,6 +381,7 @@ set +a
 | `ENV` | `dev` | API + Worker | Logger mode: `dev` (text+source) or `prod` (JSON) |
 | `LOG_LEVEL` | `info` | API + Worker | Log level: `debug`, `info`, `warn`, `error` |
 | `ADMIN_TOKEN` | empty | API | Bearer token for `/api-keys` admin endpoints |
+| `AUTO_MIGRATE` | `true` | API + Worker | Apply embedded SQL migrations at process startup |
 
 ## 10) Security Notes
 - API tokens are generated as `sk_live_<32-random-bytes-hex>`.

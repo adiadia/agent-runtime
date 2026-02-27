@@ -9,6 +9,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("ENV", "")
 	t.Setenv("ADMIN_TOKEN", "")
+	t.Setenv("AUTO_MIGRATE", "")
 
 	cfg := Load()
 
@@ -24,6 +25,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.AdminToken != "" {
 		t.Fatalf("expected default AdminToken to be empty, got %s", cfg.AdminToken)
 	}
+	if !cfg.AutoMigrate {
+		t.Fatalf("expected default AutoMigrate=true")
+	}
 }
 
 func TestLoadRespectsEnv(t *testing.T) {
@@ -31,6 +35,7 @@ func TestLoadRespectsEnv(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/app?sslmode=disable")
 	t.Setenv("ENV", "prod")
 	t.Setenv("ADMIN_TOKEN", "master-token")
+	t.Setenv("AUTO_MIGRATE", "false")
 
 	cfg := Load()
 	if cfg.HTTPAddr != ":9090" {
@@ -45,6 +50,9 @@ func TestLoadRespectsEnv(t *testing.T) {
 	if cfg.AdminToken != "master-token" {
 		t.Fatalf("expected ADMIN_TOKEN override, got %s", cfg.AdminToken)
 	}
+	if cfg.AutoMigrate {
+		t.Fatalf("expected AUTO_MIGRATE override to false")
+	}
 }
 
 func TestGetenv(t *testing.T) {
@@ -56,5 +64,22 @@ func TestGetenv(t *testing.T) {
 	t.Setenv("EXAMPLE_KEY", "")
 	if got := getenv("EXAMPLE_KEY", "fallback"); got != "fallback" {
 		t.Fatalf("expected fallback value, got %s", got)
+	}
+}
+
+func TestGetenvBool(t *testing.T) {
+	t.Setenv("BOOL_KEY", "true")
+	if got := getenvBool("BOOL_KEY", false); !got {
+		t.Fatal("expected true value")
+	}
+
+	t.Setenv("BOOL_KEY", "0")
+	if got := getenvBool("BOOL_KEY", true); got {
+		t.Fatal("expected false value")
+	}
+
+	t.Setenv("BOOL_KEY", "")
+	if got := getenvBool("BOOL_KEY", true); !got {
+		t.Fatal("expected fallback true value")
 	}
 }

@@ -42,6 +42,14 @@ func main() {
 	}
 	defer pool.Close()
 
+	if cfg.AutoMigrate {
+		if err := postgres.EnsureSchema(ctx, pool, logger); err != nil {
+			log.Fatalf("schema bootstrap failed: %v", err)
+		}
+	} else {
+		logger.Info("auto schema bootstrap disabled", "env_var", "AUTO_MIGRATE")
+	}
+
 	runRepo := repository.NewRunRepository(pool, logger)
 	stepRepo := repository.NewStepRepository(pool, logger)
 	eventRepo := repository.NewEventRepository(pool, logger)
@@ -53,6 +61,7 @@ func main() {
 		EventRepo:      eventRepo,
 		APIKeyAdmin:    apiKeyRepo,
 		Logger:         logger,
+		HealthChecker:  postgres.NewSchemaHealthChecker(pool),
 		APIKeyResolver: apiKeyRepo,
 		AdminToken:     cfg.AdminToken,
 		Version:        Version,

@@ -45,6 +45,7 @@ type Deps struct {
 	EventRepo      EventStreamer
 	APIKeyAdmin    APIKeyManager
 	Logger         *slog.Logger
+	HealthChecker  HealthChecker
 	APIKeyResolver APIKeyResolver
 	AdminToken     string
 	Version        string
@@ -70,6 +71,15 @@ func NewRouter(deps Deps) http.Handler {
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("health check hit")
+		if deps.HealthChecker != nil {
+			checkCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			if err := deps.HealthChecker.Check(checkCtx); err != nil {
+				logger.Warn("health check failed", "error", err)
+				http.Error(w, "not ready", http.StatusServiceUnavailable)
+				return
+			}
+		}
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})

@@ -1,0 +1,38 @@
+### Health check (schema-aware readiness)
+GET http://localhost:8080/healthz
+
+###
+### Create API key (admin)
+POST http://localhost:8080/api-keys
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "http-client-demo",
+  "max_concurrent_runs": 5,
+  "max_requests_per_min": 60
+}
+
+###
+### Create run with integer priority (valid)
+POST http://localhost:8080/runs
+Authorization: Bearer {{API_TOKEN}}
+Content-Type: application/json
+Idempotency-Key: run-http-demo-001
+
+{
+  "template_name": "default",
+  "priority": 10,
+  "webhook_url": "https://example.com/webhook"
+}
+
+###
+### Create run with string priority (invalid, expects 400)
+POST http://localhost:8080/runs
+Authorization: Bearer {{API_TOKEN}}
+Content-Type: application/json
+
+{
+  "template_name": "default",
+  "priority": "normal"
+}

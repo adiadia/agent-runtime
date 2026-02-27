@@ -36,3 +36,7 @@ type EventStreamer interface {
 	ListEventsAfter(ctx context.Context, runID uuid.UUID, afterSeq int64) ([]domain.EventRecord, error)
 	ResolveCursorByEventID(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (int64, error)
 }
+
+type HealthChecker interface {
+	Check(ctx context.Context) error
+}

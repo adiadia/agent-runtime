@@ -75,7 +75,7 @@ API Router -> GET /runs/{id}/events -> stream step_update events
 ### API
 - Exposes lifecycle APIs for runs, steps, approvals, cancelation, costs, and event streaming.
 - Exposes admin APIs for API key lifecycle: `POST /api-keys`, `GET /api-keys`, `DELETE /api-keys/{id}`.
-- `POST /runs` accepts optional `template_name`, `priority`, and `webhook_url`.
+- `POST /runs` accepts optional `template_name`, `priority` (JSON integer), and `webhook_url`.
 - Key runtime endpoints include:
   - `GET /runs/{id}`
   - `GET /runs/{id}/steps`
@@ -85,6 +85,7 @@ API Router -> GET /runs/{id}/events -> stream step_update events
   - `POST /runs/{id}/cancel`
 - Enforces ownership checks by `api_key_id` so cross-tenant resources return `404`.
 - Health and metrics endpoints are public: `GET /healthz`, `GET /metrics`.
+- `/healthz` returns `503` when required schema is missing and `200` only after schema checks pass.
 
 ### Authentication middleware
 - Runtime endpoints (`/runs/*`) use Bearer API key auth.
@@ -116,6 +117,12 @@ Core durable tables:
 - `events`: append-style timeline for stream/audit.
 - `run_requests`: idempotency key mapping per tenant.
 - `workflow_templates`, `workflow_template_steps`: template-defined ordered steps.
+- `schema_migrations`: applied migration files tracked by startup bootstrap.
+
+### Schema bootstrap
+- API and worker startup paths run embedded SQL migrations in filename order.
+- Migration execution is serialized with a Postgres advisory lock.
+- Each migration is recorded in `schema_migrations` to keep restarts deterministic.
 
 ### SSE
 - `GET /runs/{id}/events` streams incremental events.

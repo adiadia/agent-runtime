@@ -72,6 +72,14 @@ func main() {
 	}
 	defer pool.Close()
 
+	if cfg.AutoMigrate {
+		if err := postgres.EnsureSchema(ctx, pool, logger); err != nil {
+			log.Fatalf("schema bootstrap failed: %v", err)
+		}
+	} else {
+		logger.Info("auto schema bootstrap disabled", "env_var", "AUTO_MIGRATE")
+	}
+
 	w := worker.New(worker.Deps{
 		Pool:               pool,
 		Logger:             logger,

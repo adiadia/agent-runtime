@@ -186,6 +186,46 @@ func TestRouter_CreateRunWithPriorityAndTemplateName(t *testing.T) {
 	}
 }
 
+func TestRouter_CreateRunRejectsStringPriority(t *testing.T) {
+	runRepo := &mockRunRepo{createRunID: uuid.New()}
+	router := NewRouter(Deps{
+		RunRepo:  runRepo,
+		StepRepo: &mockStepLister{},
+		Logger:   discardLogger(),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/runs", bytes.NewBufferString(`{"priority":"normal"}`))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 got %d", rec.Code)
+	}
+	if runRepo.createCalled {
+		t.Fatal("expected CreateRun not to be called for invalid priority type")
+	}
+}
+
+func TestRouter_CreateRunRejectsNonIntegerPriority(t *testing.T) {
+	runRepo := &mockRunRepo{createRunID: uuid.New()}
+	router := NewRouter(Deps{
+		RunRepo:  runRepo,
+		StepRepo: &mockStepLister{},
+		Logger:   discardLogger(),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/runs", bytes.NewBufferString(`{"priority":10.5}`))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 got %d", rec.Code)
+	}
+	if runRepo.createCalled {
+		t.Fatal("expected CreateRun not to be called for invalid priority type")
+	}
+}
+
 func TestRouter_CreateRunRejectsInvalidWebhookURL(t *testing.T) {
 	runRepo := &mockRunRepo{createRunID: uuid.New()}
 	router := NewRouter(Deps{
@@ -402,6 +442,27 @@ func TestRouter_HealthzPreservesRequestID(t *testing.T) {
 	}
 	if got := rec.Header().Get(headerRequestID); got != "req-from-client" {
 		t.Fatalf("expected %s req-from-client got %q", headerRequestID, got)
+	}
+}
+
+func TestRouter_HealthzNotReadyWhenSchemaCheckFails(t *testing.T) {
+	healthChecker := &mockHealthChecker{err: errors.New("schema missing")}
+	router := NewRouter(Deps{
+		RunRepo:       &mockRunRepo{},
+		StepRepo:      &mockStepLister{},
+		Logger:        discardLogger(),
+		HealthChecker: healthChecker,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status 503 got %d", rec.Code)
+	}
+	if healthChecker.calls != 1 {
+		t.Fatalf("expected health checker call count 1 got %d", healthChecker.calls)
 	}
 }
 
@@ -1178,4 +1239,14 @@ func (m *mockEventRepo) ResolveCursorByEventID(ctx context.Context, runID uuid.U
 		return 0, pgx.ErrNoRows
 	}
 	return seq, nil
+}
+
+type mockHealthChecker struct {
+	err   error
+	calls int
+}
+
+func (m *mockHealthChecker) Check(ctx context.Context) error {
+	m.calls++
+	return m.err
 }

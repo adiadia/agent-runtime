@@ -17,14 +17,7 @@ services:
       retries: 20
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-      args:
-        VERSION: ${VERSION:-dev}
-        COMMIT: ${COMMIT:-none}
-        BUILD_DATE: ${BUILD_DATE:-unknown}
-    image: agent-runtime-api:local
+    image: ghcr.io/adiadia/agent-runtime-api:${IMAGE_TAG:-latest}
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,14 +34,7 @@ services:
 
   worker:
     profiles: ["worker"]
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-      args:
-        VERSION: ${VERSION:-dev}
-        COMMIT: ${COMMIT:-none}
-        BUILD_DATE: ${BUILD_DATE:-unknown}
-    image: agent-runtime-worker:local
+    image: ghcr.io/adiadia/agent-runtime-worker:${IMAGE_TAG:-latest}
     depends_on:
       postgres:
         condition: service_healthy

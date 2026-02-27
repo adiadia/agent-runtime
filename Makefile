@@ -12,7 +12,7 @@ DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS_API := -X main.Version=$(VERSION) -X main.Commit=$(GIT_SHA) -X main.BuildDate=$(DATE)
 LDFLAGS_WORKER := -X main.Version=$(VERSION) -X main.Commit=$(GIT_SHA) -X main.BuildDate=$(DATE)
 
-INTEGRATION_PACKAGES := ./internal/repository ./internal/worker
+INTEGRATION_PACKAGES := ./internal/persistence/postgres ./internal/repository ./internal/worker
 
 .PHONY: cache-dirs test-setup fmt fmt-check vet lint test test-unit test-integration test-integration-db validate \
 	docker-build docker-up docker-down wait-db migrate build-api build-worker build-cli build
@@ -99,10 +99,7 @@ wait-db:
 	exit 1
 
 migrate:
-	for f in $$(ls migrations/*.sql | sort); do \
-		echo "applying $$f"; \
-		cat $$f | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U durable -d durable; \
-	done
+	@bash scripts/migrate.sh
 
 build-api: cache-dirs
 	@mkdir -p bin

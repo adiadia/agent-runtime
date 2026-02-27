@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE TABLE api_keys (
+CREATE TABLE IF NOT EXISTS api_keys (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     token_hash TEXT NOT NULL UNIQUE,
@@ -10,7 +10,7 @@ CREATE TABLE api_keys (
     revoked_at TIMESTAMP
 );
 
-CREATE TABLE runs (
+CREATE TABLE IF NOT EXISTS runs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     api_key_id UUID NOT NULL REFERENCES api_keys(id),
     status TEXT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE runs (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE steps (
+CREATE TABLE IF NOT EXISTS steps (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE steps (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     seq BIGSERIAL UNIQUE,
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
@@ -49,7 +49,7 @@ CREATE TABLE events (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE run_requests (
+CREATE TABLE IF NOT EXISTS run_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     api_key_id UUID NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
     idempotency_key TEXT NOT NULL,
@@ -58,13 +58,13 @@ CREATE TABLE run_requests (
     UNIQUE (api_key_id, idempotency_key)
 );
 
-CREATE TABLE workflow_templates (
+CREATE TABLE IF NOT EXISTS workflow_templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE workflow_template_steps (
+CREATE TABLE IF NOT EXISTS workflow_template_steps (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_id UUID NOT NULL REFERENCES workflow_templates(id) ON DELETE CASCADE,
     position INT NOT NULL,
@@ -94,8 +94,8 @@ JOIN (
 WHERE wt.name = 'default'
 ON CONFLICT (template_id, position) DO NOTHING;
 
-CREATE INDEX idx_steps_run_id ON steps(run_id);
-CREATE INDEX idx_events_run_id ON events(run_id);
-CREATE INDEX idx_runs_api_key_id ON runs(api_key_id);
-CREATE INDEX idx_run_requests_api_key_id ON run_requests(api_key_id);
-CREATE INDEX idx_workflow_template_steps_template_id ON workflow_template_steps(template_id);
+CREATE INDEX IF NOT EXISTS idx_steps_run_id ON steps(run_id);
+CREATE INDEX IF NOT EXISTS idx_events_run_id ON events(run_id);
+CREATE INDEX IF NOT EXISTS idx_runs_api_key_id ON runs(api_key_id);
+CREATE INDEX IF NOT EXISTS idx_run_requests_api_key_id ON run_requests(api_key_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_template_steps_template_id ON workflow_template_steps(template_id);

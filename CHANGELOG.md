@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.3] - 2026-02-27
+
 ### Added
 - Release automation for publishing multi-arch Docker images to GHCR.
 - Project-level validation command (`go run ./cmd/cli validate`) and CI docs checks.
